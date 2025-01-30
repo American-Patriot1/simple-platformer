@@ -31,8 +31,10 @@ class Player(pygame.sprite.Sprite):
         self.rect=self.image.get_rect(center = (self.size[0]*2, self.size[1]*2))
         self.rect.centerx=x
         self.rect.centery=y
-        self.gravity=5
-        # self.grav_inc=.25
+        self.height=height
+        self.width=width
+        self.gravity=1
+        self.grav_inc=.25
         self.jump_timer=20
         self.in_jump=0
         self.on_surface=False
@@ -47,20 +49,20 @@ class Player(pygame.sprite.Sprite):
                 self.jump_timer-=1
                 self.in_jump=True
                 if (self.jump_timer<=0):
-                    # self.gravity=10
+                    self.gravity=1
                     self.in_jump=False
                     self.jump_timer=20
         elif self.in_jump==True:
             self.rect.centery-=self.jump_timer
             self.jump_timer-=2
             if (self.jump_timer<=0):
-                # self.gravity=10
+                self.gravity=1
                 self.in_jump=False
                 self.jump_timer=20
     def grav(self):
         if (self.in_jump==False) and (self.on_surface==False):
             self.rect.centery+=self.gravity
-            # self.gravity+=self.grav_inc
+            self.gravity+=self.grav_inc
     def collide(self):
         if pygame.sprite.spritecollide(self,plats,False):
             self.on_surface=True
@@ -77,6 +79,8 @@ class Platform(pygame.sprite.Sprite):
         self.color4=255
         self.image.fill((self.color1,self.color2,self.color3,self.color4))
         self.rect=self.image.get_rect(center = (self.size[0]*2, self.size[1]*2))
+        self.height=height
+        self.width=width
         self.rect.centerx=x
         self.rect.centery=y
         self.amt_move=amt_move/2
@@ -96,14 +100,73 @@ class Platform(pygame.sprite.Sprite):
             if self.amt_move==0:
                 self.movement[0]="left"
                 self.amt_move=self.movement[1]
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self, x, y, radius,reverse):
+        super(Enemy, self).__init__()
+        self.radius = radius
+        self.image = pygame.Surface((self.radius * 2, self.radius * 2), pygame.SRCALPHA)
+        self.color1=0
+        self.color2=0
+        self.color3=0
+        self.color4=255
+        pygame.draw.circle(self.image, (self.color1,self.color2,self.color3,self.color4), (self.radius, self.radius), self.radius)
+        self.rect=self.image.get_rect(center = (radius,radius))
+        self.rect.centerx=x
+        self.rect.centery=y
+        self.gravity=1
+        self.grav_inc=.25
+        self.which_player=random.choice([x for x in players])
+        self.reverse=reverse
+        if self.reverse==-1:
+            self.rect.centery=800
+    def grav(self):
+        self.rect.centery+=self.gravity*self.reverse
+        self.gravity+=self.grav_inc
+        if self.rect.centerx>self.which_player.rect.centerx:
+            self.rect.centerx-=random.randint(0,2)
+        else:
+            self.rect.centerx+=random.randint(0,2)
+        if self.rect.centery>800:
+            self.reverse=random.choice([1,-1])
+            self.rect.centerx=random.randint(100,1100)
+            self.which_player=random.choice([x for x in players])
+            if self.reverse==-1:
+                self.rect.centery=800
+            elif self.reverse==1:
+                self.rect.centery=-100
+        elif self.rect.centery>750:
+            self.gravity=1
+        elif self.rect.centery<-150:
+            self.reverse=random.choice([1,-1])
+            self.rect.centerx=random.randint(100,1100)
+            self.which_player=random.choice([x for x in players])
+            if self.reverse==-1:
+                self.rect.centery=800
+            elif self.reverse==1:
+                self.rect.centery=-100
+        elif self.rect.centery<-100:
+            self.gravity=1
+    def player_kill(self):
+        pygame.sprite.spritecollide(self,players,True)
+
+players=pygame.sprite.Group()
+players.add(Player(600,0,25,50,0))
+players.add(Player(600,0,25,50,1))
+
 plats=pygame.sprite.Group()
-plats.add(Platform(600,200,500,25,0))
-plats.add(Platform(600,600,500,25,0))
-plats.add(Platform(300,400,100,25,200))
-plats.add(Platform(900,400,100,25,200))
-plats.add(Platform(600,400,100,25,200))
-player=Player(600,0,25,50,0)
-player1=Player(600,0,25,50,1)
+plats.add(Platform(600,250,500,25,100))
+plats.add(Platform(600,550,500,25,100))
+plats.add(Platform(300,400,250,25,200))
+plats.add(Platform(900,400,250,25,200))
+plats.add(Platform(100,650,400,25,0))
+plats.add(Platform(1100,650,400,25,0))
+plats.add(Platform(100,100,400,25,0))
+plats.add(Platform(1100,100,400,25,0))
+
+enemies=pygame.sprite.Group()
+for i in range(5):
+    enemies.add(Enemy(random.randint(100,1100),-100,12,random.choice([1,-1])))
+
 running = True
 count=0
 while running:
@@ -113,19 +176,24 @@ while running:
         if event.type == pygame.QUIT:
             running = False
     screen.fill(WHITE)
-    player.collide()
-    player.move(keys)
-    player.grav()
-    player1.collide()
-    player1.move(keys)
-    player1.grav()
+
+    for player in players:
+        player.collide()
+        player.move(keys)
+        player.grav()
 
     for p in plats:
         p.move()
 
-    screen.blit(player.image,player.rect)
-    screen.blit(player1.image,player1.rect)
+    for e in enemies:
+        e.grav()
+        e.player_kill()
+
+    players.draw(screen)
+
     plats.draw(screen)
+
+    enemies.draw(screen)
 
     pygame.display.flip()
     clock.tick(60)
