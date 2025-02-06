@@ -10,24 +10,24 @@ pygame.display.set_caption("Pygame Tutorial")
 WHITE = (255, 255, 255)
 BLUE = (0, 0, 255)
 clock = pygame.time.Clock()
-
+win=False
+winner="PLHD"
+win_color=(0,0,0,0)
 class Player(pygame.sprite.Sprite):
     def __init__(self,x,y,width,height,id):
         super(Player, self).__init__()
         self.size = [width,height]
         self.id=id
+        self.score=0
+        self.win_requirement=10
         self.image = pygame.Surface((self.size[0], self.size[1]), pygame.SRCALPHA)
         if id==0:
-            self.color1=255
-            self.color2=0
-            self.color3=0
-            self.color4=255
+            self.colors=(255,0,0,255)
+            self.color="RED"
         elif id==1:
-            self.color1=0
-            self.color2=0
-            self.color3=255
-            self.color4=255
-        pygame.draw.circle(self.image, (self.color1,self.color2,self.color3,self.color4), (self.size[0]/2, self.size[1]/2), self.size[0])
+            self.colors=(0,0,255,255)
+            self.color="BLUE"
+        pygame.draw.circle(self.image, self.colors, (self.size[0]/2, self.size[1]/2), self.size[0])
         self.rect=self.image.get_rect(center = (self.size[0]*2, self.size[1]*2))
         self.rect.centerx=x
         self.rect.centery=y
@@ -175,7 +175,7 @@ class Enemy(pygame.sprite.Sprite):
         pygame.sprite.spritecollide(self,players,True)
 class Gold(pygame.sprite.Sprite):
     def __init__(self, x, y, radius,reverse):
-        Gold(Enemy, self).__init__()
+        super(Gold, self).__init__()
         self.radius = radius
         self.image = pygame.Surface((self.radius * 2, self.radius * 2), pygame.SRCALPHA)
         pygame.draw.circle(self.image, (255,215,0,255), (self.radius, self.radius), self.radius)
@@ -183,8 +183,8 @@ class Gold(pygame.sprite.Sprite):
         self.rect.centerx=x
         self.rect.centery=y
         self.gravity=1
-        self.grav_inc=.25
-        self.left_or_right=random.choice(random.choice([-100,1500]))
+        self.grav_inc=.2
+        self.left_or_right=random.choice([-100,1500])
         self.reverse=reverse
         if self.reverse==-1:
             self.rect.centery=800
@@ -195,7 +195,8 @@ class Gold(pygame.sprite.Sprite):
             self.rect.centerx-=random.randint(0,2)
         else:
             self.rect.centerx+=random.randint(0,2)
-        if self.rect.centery>800:
+        if self.rect.centery>1000:
+            self.gravity=1
             self.reverse=random.choice([1,-1])
             self.rect.centerx=random.randint(100,1100)
             self.left_or_right=random.choice(random.choice([[-100,350],[1500,350]]))
@@ -203,9 +204,10 @@ class Gold(pygame.sprite.Sprite):
                 self.rect.centery=800
             elif self.reverse==1:
                 self.rect.centery=-100
-        elif self.rect.centery>750:
+            if random.choice([0,1])==1:
+                golds.add(Gold(random.randint(100,1100),-100,12,random.choice([1,-1])))
+        elif self.rect.centery<-350:
             self.gravity=1
-        elif self.rect.centery<-150:
             self.reverse=random.choice([1,-1])
             self.rect.centerx=random.randint(100,1100)
             self.left_or_right=random.choice(random.choice([[-100,350],[1500,350]]))
@@ -213,11 +215,22 @@ class Gold(pygame.sprite.Sprite):
                 self.rect.centery=800
             elif self.reverse==1:
                 self.rect.centery=-100
-        elif self.rect.centery<-100:
-            self.gravity=1
-    def player_kill(self):
-        pygame.sprite.spritecollide(self,players,False)
-
+            if random.choice([0,1,2,3,4,5,6,7,8,9,10])==1:
+                golds.add(Gold(random.randint(100,1100),-100,12,random.choice([1,-1])))
+    def collide(self):
+        for player in players:
+            if self.rect.colliderect(player.rect):
+                player.score+=1
+                if player.score==player.win_requirement:
+                    global win
+                    global winner
+                    global win_color
+                    win=True
+                    winner=player.color
+                    win_color=player.colors
+                golds.add(Gold(random.randint(100,1100),-100,12,random.choice([1,-1])))
+                self.kill()
+                
 players=pygame.sprite.Group()
 players.add(Player(600,0,25,50,0))
 players.add(Player(600,0,25,50,1))
@@ -232,9 +245,9 @@ plats.add(Platform(1100,650,400,25,0))
 plats.add(Platform(100,100,400,25,0))
 plats.add(Platform(1100,100,400,25,0))
 
-# enemies=pygame.sprite.Group()
-# for i in range(5):
-#     enemies.add(Enemy(random.randint(100,1100),-100,12,random.choice([1,-1])))
+enemies=pygame.sprite.Group()
+for i in range(5):
+    enemies.add(Enemy(random.randint(100,1100),-100,12,random.choice([1,-1])))
 
 golds=pygame.sprite.Group()
 for i in range(1):
@@ -249,31 +262,34 @@ while running:
         if event.type == pygame.QUIT:
             running = False
     screen.fill(WHITE)
+    if win==False:
+        for player in players:
+            player.collide()
+            player.move(keys)
+            player.grav()
 
-    for player in players:
-        player.collide()
-        player.move(keys)
-        player.grav()
+        for p in plats:
+            p.move()
 
-    for p in plats:
-        p.move()
+        for e in enemies:
+            e.grav()
+            e.player_kill()
 
-    # for e in enemies:
-    #     e.grav()
-    #     e.player_kill()
+        for gold in golds:
+            gold.grav()
+            gold.collide()
 
-    for gold in golds:
-        gold.grav()
-        gold.player_kill()
+        players.draw(screen)
 
-    players.draw(screen)
+        plats.draw(screen)
 
-    plats.draw(screen)
+        enemies.draw(screen)
 
-    # enemies.draw(screen)
-
-    golds.draw(screen)
-
+        golds.draw(screen)
+    else:
+        win_font=pygame.font.SysFont("wingdings", 50, bold=False)
+        win_message=win_font.render(f'{winner} WINS!!!', True, win_color) #wingdings
+        screen.blit(win_message,(350,300))
     pygame.display.flip()
     clock.tick(60)
 pygame.quit()
